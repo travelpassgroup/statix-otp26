@@ -155,27 +155,49 @@ defmodule StatixTest do
     refute_received _any
   end
 
+  test "distribution/2,3" do
+    __MODULE__.distribution(["sample"], 2)
+    assert_receive {:test_server, _, "sample:2|d"}
+
+    distribution("sample", 2.1)
+    assert_receive {:test_server, _, "sample:2.1|d"}
+
+    distribution("sample", 3, tags: ["foo:bar", "baz"])
+    assert_receive {:test_server, _, "sample:3|d|#foo:bar,baz"}
+
+    distribution("sample", 3, sample_rate: 1.0, tags: ["foo", "bar"])
+    assert_receive {:test_server, _, "sample:3|d|@1.0|#foo,bar"}
+
+    distribution("sample", 3, sample_rate: 0.0)
+
+    refute_received _any
+  end
+
   test "port closed" do
     close_port()
 
     assert capture_log(fn ->
              assert {:error, :port_closed} == increment("sample")
-           end) =~ "counter metric \"sample\" lost value 1 error=:port_closed\n\e[0m"
+           end) =~ "counter metric \"sample\" lost value 1 error=:port_closed"
 
     assert capture_log(fn ->
              assert {:error, :port_closed} == decrement("sample")
-           end) =~ "counter metric \"sample\" lost value -1 error=:port_closed\n\e[0m"
+           end) =~ "counter metric \"sample\" lost value -1 error=:port_closed"
 
     assert capture_log(fn ->
              assert {:error, :port_closed} == gauge("sample", 2)
-           end) =~ "gauge metric \"sample\" lost value 2 error=:port_closed\n\e[0m"
+           end) =~ "gauge metric \"sample\" lost value 2 error=:port_closed"
 
     assert capture_log(fn ->
              assert {:error, :port_closed} == histogram("sample", 3)
-           end) =~ "histogram metric \"sample\" lost value 3 error=:port_closed\n\e[0m"
+           end) =~ "histogram metric \"sample\" lost value 3 error=:port_closed"
 
     assert capture_log(fn ->
              assert {:error, :port_closed} == timing("sample", 2.5)
-           end) =~ "timing metric \"sample\" lost value 2.5 error=:port_closed\n\e[0m"
+           end) =~ "timing metric \"sample\" lost value 2.5 error=:port_closed"
+
+    assert capture_log(fn ->
+             assert {:error, :port_closed} == distribution("sample", 2.5)
+           end) =~ "distribution metric \"sample\" lost value 2.5 error=:port_closed"
   end
 end
